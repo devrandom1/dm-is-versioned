@@ -46,24 +46,21 @@ module DataMapper
     # TODO: enable replacing a current version with an old version.
     module Versioned
       def is_versioned(options = {})
-        @on = on = options[:on]
+        @is_versioned_on = options[:on]
 
         extend(Migration) if respond_to?(:auto_migrate!)
 
-        properties.each do |property|
-          name = property.name
-          before "#{name}=".to_sym do
-            unless (value = property.get(self)).nil? || pending_version_attributes.key?(name)
-              pending_version_attributes[name] = value
-            end
+        before :save do
+          if dirty? && !new?
+            @pending_version_attributes = original_attributes.dup
           end
         end
 
-        after :update do
-          if clean? && pending_version_attributes.key?(on)
-            model::Version.create(attributes.merge(pending_version_attributes))
-            pending_version_attributes.clear
+        after :save do
+          if clean? && @pending_version_attributes
+            model::Version.create!(attributes.merge(@pending_version_attributes))
           end
+          @pending_version_attributes = nil
         end
 
         extend ClassMethods
@@ -83,12 +80,18 @@ module DataMapper
                 property.class
               end
 
-              options = property.options.merge(:key => property.name == @on)
+              options = property.options.merge(:key => property.name == @is_versioned_on)
 
-              options[:key] = true if options.delete(:serial)
+              # Replace keys for plain indices
+              options[:index] = true if options[:key]
+
+              # these options are dangerous and break the versioning system
+              [:unique, :key, :serial].each { |option| options.delete(option) }
 
               model.property(property.name, type, options)
             end
+
+            model.property('is_versioned_id', DataMapper::Property::Serial, :key => true)
 
             const_set(name, model)
           else
@@ -98,17 +101,6 @@ module DataMapper
       end # ClassMethods
 
       module InstanceMethods
-        ##
-        # Returns a hash of original values to be stored in the
-        # versions table when a new version is created. It is
-        # cleared after a version model is created.
-        #
-        # --
-        # @return <Hash>
-        def pending_version_attributes
-          @pending_version_attributes ||= {}
-        end
-
         ##
         # Returns a collection of other versions of this resource.
         # The versions are related on the models keys, and ordered
