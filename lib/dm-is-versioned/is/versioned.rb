@@ -112,7 +112,7 @@ module DataMapper
           version_model = model.const_get(:Version)
           pairs = model.key.zip(key).map { |p, v| [ p.name, v ] }
           query = DataMapper::Ext::Array.to_hash(pairs)
-          query.merge(:order => version_model.key.map { |k| k.name.desc })
+          query.merge!(:order => :is_versioned_id.desc)
           version_model.all(query)
         end
       end # InstanceMethods
