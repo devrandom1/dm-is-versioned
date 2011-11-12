@@ -50,13 +50,17 @@ module DataMapper
 
         extend(Migration) if respond_to?(:auto_migrate!)
 
+        debugger
         before :save do
+          puts "Fucking hell"
+          debugger
           if dirty? && !new?
             @pending_version_attributes = original_attributes.dup
           end
         end
 
         after :save do
+          debugger
           if clean? && @pending_version_attributes
             model::Version.create!(attributes.merge(@pending_version_attributes))
           end
@@ -92,6 +96,7 @@ module DataMapper
             end
 
             model.property('is_versioned_id', DataMapper::Property::Serial, :key => true)
+            model.finalize
             model
           else
             super
