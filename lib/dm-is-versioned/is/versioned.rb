@@ -50,12 +50,12 @@ module DataMapper
 
         extend(Migration) if respond_to?(:auto_migrate!)
 
-        debugger
         before :save do
-          puts "Fucking hell"
-          debugger
           if dirty? && !new?
-            @pending_version_attributes = original_attributes.dup
+            @pending_version_attributes = {}
+            original_attributes.each { |k,v| @pending_version_attributes[k.name] = v }
+          else
+            @pending_version_attributes = nil
           end
         end
 
