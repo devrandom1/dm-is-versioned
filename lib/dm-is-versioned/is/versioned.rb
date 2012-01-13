@@ -53,14 +53,18 @@ module DataMapper
         before :save do
           if dirty? && !new?
             @pending_version_attributes = {}
-            original_attributes.each { |k,v| @pending_version_attributes[k.name] = v }
+            original_attributes.each do |k,v|
+              # Skip associations
+              unless k.is_a? DataMapper::Associations::Relationship
+                @pending_version_attributes[k.name] = v
+              end
+            end
           else
             @pending_version_attributes = nil
           end
         end
 
         after :save do
-          debugger
           if clean? && @pending_version_attributes
             model::Version.create!(attributes.merge(@pending_version_attributes))
           end
