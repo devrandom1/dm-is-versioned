@@ -50,15 +50,20 @@ module DataMapper
 
         extend(Migration) if respond_to?(:auto_migrate!)
 
+        before :destroy do
+          # Record last attributes, ignoring any local updates
+          calculate_pending_version_attributes
+          model::Version.create!(attributes.merge(@pending_version_attributes))
+          # If we can set timestamps (dm-timestamps) - create a last version with current stamp and any local updates
+          set_timestamps rescue false
+          if dirty?
+            model::Version.create!(attributes)
+          end
+        end
+
         before :save do
           if dirty? && !new?
-            @pending_version_attributes = {}
-            original_attributes.each do |k,v|
-              # Skip associations
-              unless k.is_a? DataMapper::Associations::Relationship
-                @pending_version_attributes[k.name] = v
-              end
-            end
+            calculate_pending_version_attributes
           else
             @pending_version_attributes = nil
           end
@@ -121,6 +126,16 @@ module DataMapper
           query = Hash[ model.key.zip(key).map { |p, v| [ p.name, v ] } ]
           query.merge!(:order => :is_versioned_id.desc)
           version_model.all(query)
+        end
+
+        def calculate_pending_version_attributes
+          @pending_version_attributes = {}
+          original_attributes.each do |k,v|
+            # Skip associations
+            unless k.is_a? DataMapper::Associations::Relationship
+              @pending_version_attributes[k.name] = v
+            end
+          end
         end
       end # InstanceMethods
 
