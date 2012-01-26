@@ -57,7 +57,7 @@ module DataMapper
           # If we can set timestamps (dm-timestamps) - create a last version with current stamp and any local updates
           set_timestamps rescue false
           if dirty?
-            model::Version.create!(attributes)
+            model::Version.create!(attributes.merge(:is_destroyed => true))
           end
         end
 
@@ -105,6 +105,7 @@ module DataMapper
             end
 
             model.property('is_versioned_id', DataMapper::Property::Serial, :key => true)
+            model.property('is_destroyed', DataMapper::Property::Boolean, :required => true, :default => false)
             model.finalize
             model
           else
